@@ -41,6 +41,10 @@ public class MoviePostView extends RelativeLayout {
         ButterKnife.bind(this, this);
     }
 
+    public ImageView getImage() {
+        return image;
+    }
+
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         int width = MeasureSpec.getSize(widthMeasureSpec);
