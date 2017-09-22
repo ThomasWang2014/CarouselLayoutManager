@@ -23,7 +23,7 @@ public class DemoAdapter extends RecyclerView.Adapter<DemoAdapter.ViewHolder> {
 
     @Override
     public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-        MoviePostView postView = new MoviePostView(context);
+        MoviePosterView postView = new MoviePosterView(context);
         postView.setLayoutParams(new RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
         return new ViewHolder(postView);
@@ -40,11 +40,11 @@ public class DemoAdapter extends RecyclerView.Adapter<DemoAdapter.ViewHolder> {
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
-        MoviePostView postView;
+        MoviePosterView postView;
 
         public ViewHolder(View itemView) {
             super(itemView);
-            postView = (MoviePostView) itemView;
+            postView = (MoviePosterView) itemView;
         }
     }
 }

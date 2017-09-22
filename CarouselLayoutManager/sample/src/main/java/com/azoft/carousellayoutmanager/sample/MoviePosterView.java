@@ -7,6 +7,8 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 
+import com.azoft.carousellayoutmanager.ExpandableItem;
+
 import butterknife.BindView;
 import butterknife.ButterKnife;
 
@@ -15,23 +17,24 @@ import butterknife.ButterKnife;
  * @since 2017/9/21 21:31
  */
 
-public class MoviePostView extends RelativeLayout {
+public class MoviePosterView extends RelativeLayout implements ExpandableItem {
     @BindView(R.id.image)
     ImageView image;
     @BindView(R.id.text_layout)
     LinearLayout textLayout;
 
-    private static final float ratio = 258 / 375.0f;
+    private static final float EXPAND_RATIO = 258 / 375.0f;
+    private static final float FOLD_RATIO = 110 / 375.0f;
 
-    public MoviePostView(Context context) {
+    public MoviePosterView(Context context) {
         this(context, null);
     }
 
-    public MoviePostView(Context context, AttributeSet attrs) {
+    public MoviePosterView(Context context, AttributeSet attrs) {
         this(context, attrs, 0);
     }
 
-    public MoviePostView(Context context, AttributeSet attrs, int defStyleAttr) {
+    public MoviePosterView(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
         init();
     }
@@ -48,8 +51,18 @@ public class MoviePostView extends RelativeLayout {
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         int width = MeasureSpec.getSize(widthMeasureSpec);
-        int height = (int) (width * ratio);
+        int height = (int) (width * EXPAND_RATIO);
         int newHeightMeasureSpec = MeasureSpec.makeMeasureSpec(height, MeasureSpec.EXACTLY);
         super.onMeasure(widthMeasureSpec, newHeightMeasureSpec);
+    }
+
+    @Override
+    public int getExpandSize() {
+        return (int) (getMeasuredWidth() * EXPAND_RATIO);
+    }
+
+    @Override
+    public int getFoldSize() {
+        return (int) (getMeasuredWidth() * FOLD_RATIO);
     }
 }

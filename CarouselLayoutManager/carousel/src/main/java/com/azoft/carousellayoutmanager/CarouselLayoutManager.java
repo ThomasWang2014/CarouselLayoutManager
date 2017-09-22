@@ -12,6 +12,7 @@ import android.support.v4.view.ViewCompat;
 import android.support.v7.widget.LinearSmoothScroller;
 import android.support.v7.widget.OrientationHelper;
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 
@@ -48,7 +49,8 @@ public class CarouselLayoutManager extends RecyclerView.LayoutManager implements
     private static final boolean CIRCLE_LAYOUT = false;
 
     private Integer mDecoratedChildWidth;
-    private Integer mDecoratedChildHeight;
+    private Integer mDecoratedChildExpandHeight;
+    private Integer mDecoratedChildFoldHeight;
 
     private final int mOrientation;
     private final boolean mCircleLayout;
@@ -271,7 +273,7 @@ public class CarouselLayoutManager extends RecyclerView.LayoutManager implements
      */
     @CallSuper
     protected int scrollBy(final int diff, @NonNull final RecyclerView.Recycler recycler, @NonNull final RecyclerView.State state) {
-        if (null == mDecoratedChildWidth || null == mDecoratedChildHeight) {
+        if (null == mDecoratedChildWidth || null == mDecoratedChildExpandHeight) {
             return 0;
         }
         if (0 == getChildCount() || 0 == diff) {
@@ -312,7 +314,7 @@ public class CarouselLayoutManager extends RecyclerView.LayoutManager implements
 
     @Override
     public void onMeasure(final RecyclerView.Recycler recycler, final RecyclerView.State state, final int widthSpec, final int heightSpec) {
-        mDecoratedChildHeight = null;
+        mDecoratedChildExpandHeight = null;
         mDecoratedChildWidth = null;
 
         super.onMeasure(recycler, state, widthSpec, heightSpec);
@@ -343,7 +345,13 @@ public class CarouselLayoutManager extends RecyclerView.LayoutManager implements
             measureChildWithMargins(view, 0, 0);
 
             mDecoratedChildWidth = getDecoratedMeasuredWidth(view);
-            mDecoratedChildHeight = getDecoratedMeasuredHeight(view);
+            if (view instanceof ExpandableItem) {
+                mDecoratedChildExpandHeight = ((ExpandableItem) view).getExpandSize();
+                mDecoratedChildFoldHeight = ((ExpandableItem) view).getFoldSize();
+            } else {
+                mDecoratedChildExpandHeight = getDecoratedMeasuredHeight(view);
+                mDecoratedChildFoldHeight = getDecoratedMeasuredHeight(view);
+            }
             removeAndRecycleView(view, recycler);
 
             if (INVALID_POSITION == mPendingScrollPosition && null == mPendingCarouselSavedState) {
@@ -373,7 +381,7 @@ public class CarouselLayoutManager extends RecyclerView.LayoutManager implements
 
     private int calculateScrollForSelectingPosition(final int itemPosition, final RecyclerView.State state) {
         final int fixedItemPosition = itemPosition < state.getItemCount() ? itemPosition : state.getItemCount() - 1;
-        return fixedItemPosition * (VERTICAL == mOrientation ? mDecoratedChildHeight : mDecoratedChildWidth);
+        return fixedItemPosition * (VERTICAL == mOrientation ? mDecoratedChildExpandHeight : mDecoratedChildWidth);
     }
 
     private void fillData(@NonNull final RecyclerView.Recycler recycler, @NonNull final RecyclerView.State state, final boolean childMeasuringNeeded) {
@@ -419,20 +427,22 @@ public class CarouselLayoutManager extends RecyclerView.LayoutManager implements
         final int start = (width - mDecoratedChildWidth) / 2;
         final int end = start + mDecoratedChildWidth;
 
-        final int centerViewTop = (height - mDecoratedChildHeight) / 2;
+        final int centerViewTop = (height - mDecoratedChildExpandHeight) / 2;
 
         for (int i = 0, count = mLayoutHelper.mLayoutOrder.length; i < count; ++i) {
             final LayoutOrder layoutOrder = mLayoutHelper.mLayoutOrder[i];
             final int offset = getCardOffsetByPositionDiff(layoutOrder.mItemPositionDiff);
-            final int top = centerViewTop + offset;
-            final int bottom = top + mDecoratedChildHeight;
+//            final int top = centerViewTop + offset;
+            // modify by me 不需要从中心item开始排列，取消偏移量
+            final int top = offset;
+            final int bottom = top + mDecoratedChildExpandHeight;
             fillChildItem(start, top, end, bottom, layoutOrder, recycler, i, childMeasuringNeeded);
         }
     }
 
     private void fillDataHorizontal(final RecyclerView.Recycler recycler, final int width, final int height, final boolean childMeasuringNeeded) {
-        final int top = (height - mDecoratedChildHeight) / 2;
-        final int bottom = top + mDecoratedChildHeight;
+        final int top = (height - mDecoratedChildExpandHeight) / 2;
+        final int bottom = top + mDecoratedChildExpandHeight;
 
         final int centerViewStart = (width - mDecoratedChildWidth) / 2;
 
@@ -526,13 +536,15 @@ public class CarouselLayoutManager extends RecyclerView.LayoutManager implements
             mLayoutHelper.initLayoutOrder(layoutCount);
 
             for (int i = firstVisible; i <= lastVisible; ++i) {
-                if (i == centerItem) {
-                    mLayoutHelper.setLayoutOrder(layoutCount - 1, i, i - absCurrentScrollPosition);
-                } else if (i < centerItem) {
-                    mLayoutHelper.setLayoutOrder(i - firstVisible, i, i - absCurrentScrollPosition);
-                } else {
-                    mLayoutHelper.setLayoutOrder(layoutCount - (i - centerItem) - 1, i, i - absCurrentScrollPosition);
-                }
+                mLayoutHelper.setLayoutOrder(i - firstVisible, i, i - absCurrentScrollPosition);
+                // 不需要改变叠放顺序，顺序靠后的item后摆放
+//                if (i == centerItem) {
+//                    mLayoutHelper.setLayoutOrder(layoutCount - 1, i, i - absCurrentScrollPosition);
+//                } else if (i < centerItem) {
+//                    mLayoutHelper.setLayoutOrder(i - firstVisible, i, i - absCurrentScrollPosition);
+//                } else {
+//                    mLayoutHelper.setLayoutOrder(layoutCount - (i - centerItem) - 1, i, i - absCurrentScrollPosition);
+//                }
             }
         }
     }
@@ -569,15 +581,18 @@ public class CarouselLayoutManager extends RecyclerView.LayoutManager implements
      * @return offset in scroll px coordinates.
      */
     protected int getCardOffsetByPositionDiff(final float itemPositionDiff) {
-        final double smoothPosition = convertItemPositionDiffToSmoothPositionDiff(itemPositionDiff);
+        // modify by me 不需要调整偏移量
+//        final double smoothPosition = convertItemPositionDiffToSmoothPositionDiff(itemPositionDiff);
+        final double smoothPosition = Math.abs(itemPositionDiff);
 
         final int dimenDiff;
         if (VERTICAL == mOrientation) {
-            dimenDiff = (getHeightNoPadding() - mDecoratedChildHeight) / 2;
+            dimenDiff = mDecoratedChildFoldHeight;
         } else {
-            dimenDiff = (getWidthNoPadding() - mDecoratedChildWidth) / 2;
+            dimenDiff = (getWidthNoPadding() - mDecoratedChildWidth) / 4;
         }
         //noinspection NumericCastThatLosesPrecision
+        Log.i("layoutmanager", "center pos = " + mCenterItemPosition + ", itemPositionDiff = " + itemPositionDiff);
         return (int) Math.round(Math.signum(itemPositionDiff) * dimenDiff * smoothPosition);
     }
 
@@ -597,15 +612,17 @@ public class CarouselLayoutManager extends RecyclerView.LayoutManager implements
         // generally item moves the same way above center and bellow it. So we don't care about diff sign.
         final float absIemPositionDiff = Math.abs(itemPositionDiff);
 
-        // we detect if this item is close for center or not. We use (1 / maxVisibleItem) ^ (1/3) as close definer.
-        if (absIemPositionDiff > StrictMath.pow(1.0f / mLayoutHelper.mMaxVisibleItems, 1.0f / 3)) {
-            // this item is far from center line, so we should make it move like square root function
-            return StrictMath.pow(absIemPositionDiff / mLayoutHelper.mMaxVisibleItems, 1 / 2.0f);
-        } else {
-            // this item is close from center line. we should slow it down and don't make it speed up very quick.
-            // so square function in range of [0, (1/maxVisible)^(1/3)] is quite good in it;
-            return StrictMath.pow(absIemPositionDiff, 2.0f);
-        }
+        return StrictMath.pow(absIemPositionDiff / mLayoutHelper.mMaxVisibleItems, 1 / 2.0f);
+
+//        // we detect if this item is close for center or not. We use (1 / maxVisibleItem) ^ (1/3) as close definer.
+//        if (absIemPositionDiff > StrictMath.pow(1.0f / mLayoutHelper.mMaxVisibleItems, 1.0f / 3)) {
+//            // this item is far from center line, so we should make it move like square root function
+//            return StrictMath.pow(absIemPositionDiff / mLayoutHelper.mMaxVisibleItems, 1 / 2.0f);
+//        } else {
+//            // this item is close from center line. we should slow it down and don't make it speed up very quick.
+//            // so square function in range of [0, (1/maxVisible)^(1/3)] is quite good in it;
+//            return StrictMath.pow(absIemPositionDiff, 2.0f);
+//        }
     }
 
     /**
@@ -613,7 +630,7 @@ public class CarouselLayoutManager extends RecyclerView.LayoutManager implements
      */
     protected int getScrollItemSize() {
         if (VERTICAL == mOrientation) {
-            return mDecoratedChildHeight;
+            return mDecoratedChildExpandHeight;
         } else {
             return mDecoratedChildWidth;
         }
